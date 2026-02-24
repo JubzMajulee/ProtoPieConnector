@@ -1,0 +1,14 @@
+# Unity/C# GitIgnore
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Tt]emp/
+.vs/
+.vscode/
+*.userprefs
+*.csproj
+*.sln
+*.suo
+*.user
+*.unitypackage
+*.meta
