@@ -24,6 +24,18 @@ public enum MessageDirection : ushort
     Both = 2
 }
 
+public enum SendMode
+{
+    TriggerOnly,
+    WithValue
+}
+
+public enum PayloadType
+{
+    StaticString,
+    DynamicVariable
+}
+
 // --- DATA CLASS 1: MESSAGE MAPPING ---
 // '[System.Serializable]' tells Unity to show this class in the Inspector.
 // This is not a component; it's a data container.
@@ -35,11 +47,8 @@ public class MessageMapping
     // The 'messageId' that ProtoPie will send (e.g., "ChangeSeason", "ChangeView").
     public string messageId;
 
-    // '[Header(...)]' creates a bold title in the Inspector.
-    [Header("Direction")]
     public MessageDirection direction = MessageDirection.Receive;
 
-    [Header("Action To Trigger (ProtoPie To Unity)")]
     // This is a UnityEvent that takes NO parameters.
     // You can assign functions to this (like ResetToDefault()).
     public UnityEvent onReceive;
@@ -47,9 +56,13 @@ public class MessageMapping
     // You can assign functions to this (like SwitchToEnvironment(string value)).
     public UnityEvent<string> onReceiveWithValue;
 
-    [Header("Action To Listen To (Unity To ProtoPie)")]
     public GameObject targetObject;
     public string eventToListenTo;
+
+    public SendMode sendMode = SendMode.TriggerOnly;
+    public PayloadType payloadType = PayloadType.StaticString;
+    public string staticPayloadValue = "";
+
     public GameObject variableSourceObject;
     public string variableName;
 }
@@ -271,22 +284,43 @@ public class ProtoPieConnector : MonoBehaviour
         if (mapping.targetObject == null || string.IsNullOrEmpty(mapping.eventToListenTo))
             return;
 
+        string[] eventParts = mapping.eventToListenTo.Split('.');
+        if (eventParts.Length != 2)
+            return;
+
+        string className = eventParts[0];
+        string eventName = eventParts[1];
+
         MonoBehaviour[] components = mapping.targetObject.GetComponents<MonoBehaviour>();
         foreach (var component in components)
         {
-            var field = component.GetType().GetField(mapping.eventToListenTo, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
-            if (field != null && typeof(UnityEvent).IsAssignableFrom(field.FieldType))
+            if (component.GetType().Name == className)
             {
-                UnityEvent unityEvent = field.GetValue(component) as UnityEvent;
-                if (unityEvent != null)
+                var field = component.GetType().GetField(eventName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
+                if (field != null && typeof(UnityEvent).IsAssignableFrom(field.FieldType))
                 {
-                    unityEvent.AddListener(() =>
+                    UnityEvent unityEvent = field.GetValue(component) as UnityEvent;
+                    if (unityEvent != null)
                     {
-                        string variableValue = GetVariableValueAsString(mapping.variableSourceObject, mapping.variableName);
-                        SendMessageToProtoPie(mapping.messageId, variableValue);
-                    });
-                    field.SetValue(component, unityEvent);
-                    break;
+                        unityEvent.AddListener(() =>
+                        {
+                            string valueToSend = "";
+                            if (mapping.sendMode == SendMode.WithValue)
+                            {
+                                if (mapping.payloadType == PayloadType.StaticString)
+                                {
+                                    valueToSend = mapping.staticPayloadValue;
+                                }
+                                else if (mapping.payloadType == PayloadType.DynamicVariable)
+                                {
+                                    valueToSend = GetVariableValueAsString(mapping.variableSourceObject, mapping.variableName);
+                                }
+                            }
+                            SendMessageToProtoPie(mapping.messageId, valueToSend);
+                        });
+                        field.SetValue(component, unityEvent);
+                        break;
+                    }
                 }
             }
         }
@@ -315,10 +349,21 @@ public class ProtoPieConnector : MonoBehaviour
             // Check if the component's type name matches the className part of variableName
             if (component.GetType().Name == className)
             {
-                var field = component.GetType().GetField(fieldName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
+                var type = component.GetType();
+                
+                // Try to find a field first
+                var field = type.GetField(fieldName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
                 if (field != null)
                 {
                     object value = field.GetValue(component);
+                    return value?.ToString() ?? "";
+                }
+
+                // If not a field, try property
+                var prop = type.GetProperty(fieldName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
+                if (prop != null && prop.CanRead)
+                {
+                    object value = prop.GetValue(component);
                     return value?.ToString() ?? "";
                 }
             }
