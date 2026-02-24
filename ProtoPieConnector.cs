@@ -15,6 +15,14 @@ using SocketIOClient;
 using SocketIOClient.Newtonsoft.Json;
 // Classes for handling raw JSON data (JToken).
 using Newtonsoft.Json.Linq;
+using System.Reflection;
+
+public enum MessageDirection : ushort
+{
+    Receive = 0,
+    Send = 1,
+    Both = 2
+}
 
 // --- DATA CLASS 1: MESSAGE MAPPING ---
 // '[System.Serializable]' tells Unity to show this class in the Inspector.
@@ -28,6 +36,9 @@ public class MessageMapping
     public string messageId;
 
     // '[Header(...)]' creates a bold title in the Inspector.
+    [Header("Direction")]
+    public MessageDirection direction = MessageDirection.Receive;
+
     [Header("Action To Trigger (ProtoPie To Unity)")]
     // This is a UnityEvent that takes NO parameters.
     // You can assign functions to this (like ResetToDefault()).
@@ -35,6 +46,12 @@ public class MessageMapping
     // This is a UnityEvent that takes ONE STRING parameter.
     // You can assign functions to this (like SwitchToEnvironment(string value)).
     public UnityEvent<string> onReceiveWithValue;
+
+    [Header("Action To Listen To (Unity To ProtoPie)")]
+    public GameObject targetObject;
+    public string eventToListenTo;
+    public GameObject variableSourceObject;
+    public string variableName;
 }
 
 // --- DATA CLASS 2: PROTOPIE MESSAGE ---
@@ -104,6 +121,9 @@ public class ProtoPieConnector : MonoBehaviour
     {
         // Begin the connection process to the ProtoPie Connect server.
         ConnectToServer();
+
+        // Subscribe to Unity events for sending messages back to ProtoPie
+        SubscribeToOutgoingEvents();
     }
 
     // 'OnDestroy' is called when the GameObject is destroyed (e.g., when you stop Play Mode).
@@ -210,16 +230,121 @@ public class ProtoPieConnector : MonoBehaviour
         // Try to find a mapping in our dictionary using the 'messageId' as the key.
         if (_mappingLookup.TryGetValue(msg.MessageId, out MessageMapping mapping))
         {
-            // SUCCESS: A mapping was found.
-            Debug.Log($"[ProtoPie] Executing mapping for '{msg.MessageId}' with value '{msg.Value}'...");
+            if (mapping.direction == MessageDirection.Receive || mapping.direction == MessageDirection.Both)
+            {
+                // SUCCESS: A mapping was found.
+                Debug.Log($"[ProtoPie] Executing mapping for '{msg.MessageId}' with value '{msg.Value}'...");
 
-            // Trigger the 'onReceive' event (for functions with NO parameters).
-            // The '?' is a null-check; it only invokes if you assigned a function in the Inspector.
-            mapping.onReceive?.Invoke();
+                // Trigger the 'onReceive' event (for functions with NO parameters).
+                // The '?' is a null-check; it only invokes if you assigned a function in the Inspector.
+                mapping.onReceive?.Invoke();
 
-            // Trigger the 'onReceiveWithValue' event, passing in the 'Value' from the message.
-            mapping.onReceiveWithValue?.Invoke(msg.Value);
+                // Trigger the 'onReceiveWithValue' event, passing in the 'Value' from the message.
+                mapping.onReceiveWithValue?.Invoke(msg.Value);
+            }
         }
         // else: No mapping was found for this 'messageId', so nothing happens.
+    }
+
+    // --- OUTGOING LOGIC (UNITY TO PROTOPIE) ---
+
+    /// <summary>
+    /// Subscribes to all outgoing events if the mapping direction allows sending.
+    /// </summary>
+    private void SubscribeToOutgoingEvents()
+    {
+        foreach (var mapping in mappings)
+        {
+            if (mapping.direction == MessageDirection.Send || mapping.direction == MessageDirection.Both)
+            {
+                SubscribeToEvent(mapping);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Uses reflection to find the specified UnityEvent on the targetObject and adds a listener 
+    /// that sends a message to ProtoPie.
+    /// </summary>
+    private void SubscribeToEvent(MessageMapping mapping)
+    {
+        if (mapping.targetObject == null || string.IsNullOrEmpty(mapping.eventToListenTo))
+            return;
+
+        MonoBehaviour[] components = mapping.targetObject.GetComponents<MonoBehaviour>();
+        foreach (var component in components)
+        {
+            var field = component.GetType().GetField(mapping.eventToListenTo, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
+            if (field != null && typeof(UnityEvent).IsAssignableFrom(field.FieldType))
+            {
+                UnityEvent unityEvent = field.GetValue(component) as UnityEvent;
+                if (unityEvent != null)
+                {
+                    unityEvent.AddListener(() =>
+                    {
+                        string variableValue = GetVariableValueAsString(mapping.variableSourceObject, mapping.variableName);
+                        SendMessageToProtoPie(mapping.messageId, variableValue);
+                    });
+                    field.SetValue(component, unityEvent);
+                    break;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extracts the value from a script variable using reflection.
+    /// Expected format for variableName is "ClassName.FieldName".
+    /// </summary>
+    private string GetVariableValueAsString(GameObject sourceObject, string variableName)
+    {
+        if (sourceObject == null || string.IsNullOrEmpty(variableName))
+            return "";
+
+        // Split the variableName into className and fieldName
+        string[] parts = variableName.Split('.');
+        if (parts.Length != 2) // Expecting exactly two parts: ClassName.FieldName
+            return "";
+
+        string className = parts[0];
+        string fieldName = parts[1];
+
+        MonoBehaviour[] components = sourceObject.GetComponents<MonoBehaviour>();
+        foreach (var component in components)
+        {
+            // Check if the component's type name matches the className part of variableName
+            if (component.GetType().Name == className)
+            {
+                var field = component.GetType().GetField(fieldName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
+                if (field != null)
+                {
+                    object value = field.GetValue(component);
+                    return value?.ToString() ?? "";
+                }
+            }
+        }
+        return "";
+    }
+
+    /// <summary>
+    /// Emits a message back to the ProtoPie Connect server.
+    /// </summary>
+    public void SendMessageToProtoPie(string messageId, string value)
+    {
+        if (socket == null || !socket.Connected)
+        {
+            Debug.LogWarning("[ProtoPie] Cannot send message, not connected to server.");
+            return;
+        }
+
+        try
+        {
+            socket.Emit("ppMessage", new { messageId = messageId, value = value });
+            // Debug.Log($"[ProtoPie] Sent message: '{messageId}' with value '{value}'"); // Keep commented to avoid log spam, uncomment to debug
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[ProtoPie] Send Error: {ex.Message}");
+        }
     }
 }
