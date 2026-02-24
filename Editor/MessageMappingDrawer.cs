@@ -30,6 +30,7 @@ public class MessageMappingDrawer : PropertyDrawer
         SerializedProperty direction = property.FindPropertyRelative("direction");
 
         // References to Receive properties
+        SerializedProperty receiveMode = property.FindPropertyRelative("receiveMode");
         SerializedProperty onReceive = property.FindPropertyRelative("onReceive");
         SerializedProperty onReceiveWithValue = property.FindPropertyRelative("onReceiveWithValue");
 
@@ -66,15 +67,26 @@ public class MessageMappingDrawer : PropertyDrawer
             EditorGUI.LabelField(drawRect, "Action To Trigger (ProtoPie To Unity)", EditorStyles.boldLabel);
             drawRect.y += lineHeight + headerSpacing;
 
-            float onReceiveHeight = EditorGUI.GetPropertyHeight(onReceive);
-            Rect onReceiveRect = new Rect(drawRect.x, drawRect.y, drawRect.width, onReceiveHeight);
-            EditorGUI.PropertyField(onReceiveRect, onReceive);
-            drawRect.y += onReceiveHeight + spacing;
+            // Receive Mode Configuration
+            EditorGUI.PropertyField(drawRect, receiveMode);
+            drawRect.y += lineHeight + spacing;
 
-            float onReceiveWithValueHeight = EditorGUI.GetPropertyHeight(onReceiveWithValue);
-            Rect onReceiveWithValueRect = new Rect(drawRect.x, drawRect.y, drawRect.width, onReceiveWithValueHeight);
-            EditorGUI.PropertyField(onReceiveWithValueRect, onReceiveWithValue);
-            drawRect.y += onReceiveWithValueHeight + spacing;
+            ReceiveMode currentReceiveMode = (ReceiveMode)receiveMode.enumValueIndex;
+
+            if (currentReceiveMode == ReceiveMode.TriggerOnly)
+            {
+                float onReceiveHeight = EditorGUI.GetPropertyHeight(onReceive);
+                Rect onReceiveRect = new Rect(drawRect.x, drawRect.y, drawRect.width, onReceiveHeight);
+                EditorGUI.PropertyField(onReceiveRect, onReceive);
+                drawRect.y += onReceiveHeight + spacing;
+            }
+            else if (currentReceiveMode == ReceiveMode.WithValue)
+            {
+                float onReceiveWithValueHeight = EditorGUI.GetPropertyHeight(onReceiveWithValue);
+                Rect onReceiveWithValueRect = new Rect(drawRect.x, drawRect.y, drawRect.width, onReceiveWithValueHeight);
+                EditorGUI.PropertyField(onReceiveWithValueRect, onReceiveWithValue);
+                drawRect.y += onReceiveWithValueHeight + spacing;
+            }
         }
 
         // --- DRAW SEND FIELDS ---
@@ -165,8 +177,17 @@ public class MessageMappingDrawer : PropertyDrawer
         {
             totalHeight += sectionSpacing;
             totalHeight += lineHeight + headerSpacing; // Header Label
-            totalHeight += EditorGUI.GetPropertyHeight(property.FindPropertyRelative("onReceive")) + spacing;
-            totalHeight += EditorGUI.GetPropertyHeight(property.FindPropertyRelative("onReceiveWithValue")) + spacing;
+            totalHeight += lineHeight + spacing; // Receive Mode dropdown
+            
+            SerializedProperty receiveMode = property.FindPropertyRelative("receiveMode");
+            if ((ReceiveMode)receiveMode.enumValueIndex == ReceiveMode.TriggerOnly)
+            {
+                totalHeight += EditorGUI.GetPropertyHeight(property.FindPropertyRelative("onReceive")) + spacing;
+            }
+            else
+            {
+                totalHeight += EditorGUI.GetPropertyHeight(property.FindPropertyRelative("onReceiveWithValue")) + spacing;
+            }
         }
 
         if (currentDir == MessageDirection.Send || currentDir == MessageDirection.Both)

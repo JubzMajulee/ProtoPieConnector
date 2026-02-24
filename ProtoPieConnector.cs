@@ -24,6 +24,12 @@ public enum MessageDirection : ushort
     Both = 2
 }
 
+public enum ReceiveMode
+{
+    TriggerOnly,
+    WithValue
+}
+
 public enum SendMode
 {
     TriggerOnly,
@@ -48,6 +54,8 @@ public class MessageMapping
     public string messageId;
 
     public MessageDirection direction = MessageDirection.Receive;
+
+    public ReceiveMode receiveMode = ReceiveMode.TriggerOnly;
 
     // This is a UnityEvent that takes NO parameters.
     // You can assign functions to this (like ResetToDefault()).
