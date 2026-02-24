@@ -10,6 +10,8 @@ public class MessageMappingDrawer : PropertyDrawer
     // Caching heights for layout calculation
     private float lineHeight = EditorGUIUtility.singleLineHeight;
     private float spacing = EditorGUIUtility.standardVerticalSpacing;
+    private float sectionSpacing = 12f;
+    private float headerSpacing = 8f;
 
     public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
     {
@@ -59,8 +61,10 @@ public class MessageMappingDrawer : PropertyDrawer
         // --- DRAW RECEIVE FIELDS ---
         if (currentDir == MessageDirection.Receive || currentDir == MessageDirection.Both)
         {
+            drawRect.y += sectionSpacing;
+
             EditorGUI.LabelField(drawRect, "Action To Trigger (ProtoPie To Unity)", EditorStyles.boldLabel);
-            drawRect.y += lineHeight + spacing;
+            drawRect.y += lineHeight + headerSpacing;
 
             float onReceiveHeight = EditorGUI.GetPropertyHeight(onReceive);
             Rect onReceiveRect = new Rect(drawRect.x, drawRect.y, drawRect.width, onReceiveHeight);
@@ -76,16 +80,17 @@ public class MessageMappingDrawer : PropertyDrawer
         // --- DRAW SEND FIELDS ---
         if (currentDir == MessageDirection.Send || currentDir == MessageDirection.Both)
         {
+            drawRect.y += sectionSpacing;
+
             // Separator if Both mode is selected
             if (currentDir == MessageDirection.Both)
             {
-                drawRect.y += spacing * 2;
                 EditorGUI.LabelField(new Rect(drawRect.x, drawRect.y, drawRect.width, 2), GUIContent.none, GUI.skin.horizontalSlider);
-                drawRect.y += spacing * 4;
+                drawRect.y += 2 + sectionSpacing;
             }
 
             EditorGUI.LabelField(drawRect, "Action To Listen To (Unity To ProtoPie)", EditorStyles.boldLabel);
-            drawRect.y += lineHeight + spacing;
+            drawRect.y += lineHeight + headerSpacing;
 
             EditorGUI.PropertyField(drawRect, targetObject);
             drawRect.y += lineHeight + spacing;
@@ -158,16 +163,19 @@ public class MessageMappingDrawer : PropertyDrawer
 
         if (currentDir == MessageDirection.Receive || currentDir == MessageDirection.Both)
         {
-            totalHeight += lineHeight + spacing; // Header Label
+            totalHeight += sectionSpacing;
+            totalHeight += lineHeight + headerSpacing; // Header Label
             totalHeight += EditorGUI.GetPropertyHeight(property.FindPropertyRelative("onReceive")) + spacing;
             totalHeight += EditorGUI.GetPropertyHeight(property.FindPropertyRelative("onReceiveWithValue")) + spacing;
         }
 
         if (currentDir == MessageDirection.Send || currentDir == MessageDirection.Both)
         {
-            if (currentDir == MessageDirection.Both) totalHeight += spacing * 6; // Separator
+            totalHeight += sectionSpacing;
+            if (currentDir == MessageDirection.Both) totalHeight += 2 + sectionSpacing; // Separator height
 
-            totalHeight += (lineHeight + spacing) * 2; // Header Label + targetObject
+            totalHeight += lineHeight + headerSpacing; // Header Label
+            totalHeight += lineHeight + spacing; // Target object field
             
             SerializedProperty targetObject = property.FindPropertyRelative("targetObject");
             if (targetObject.objectReferenceValue != null) totalHeight += lineHeight + spacing; // Dropdown
