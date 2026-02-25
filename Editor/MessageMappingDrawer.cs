@@ -12,17 +12,19 @@ public class MessageMappingDrawer : PropertyDrawer
     private float spacing = EditorGUIUtility.standardVerticalSpacing;
     private float sectionSpacing = 12f;
     private float headerSpacing = 8f;
+    private float mappingSpacing = 16f;
 
     public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
     {
         EditorGUI.BeginProperty(position, label, property);
 
         // Draw an outline/box for the array element
-        Rect boxRect = new Rect(position.x, position.y, position.width, GetPropertyHeight(property, label));
+        // We subtract mappingSpacing from the height so there's a visual gap before the next element
+        Rect boxRect = new Rect(position.x, position.y + (mappingSpacing / 2f), position.width, GetPropertyHeight(property, label) - mappingSpacing);
         GUI.Box(boxRect, GUIContent.none, EditorStyles.helpBox);
 
         // Calculate initial rect inside the box
-        Rect drawRect = new Rect(position.x + 5, position.y + 5, position.width - 10, lineHeight);
+        Rect drawRect = new Rect(position.x + 5, position.y + (mappingSpacing / 2f) + 5, position.width - 10, lineHeight);
 
         // References to all base properties
         SerializedProperty mappingLabel = property.FindPropertyRelative("mappingLabel");
@@ -69,7 +71,7 @@ public class MessageMappingDrawer : PropertyDrawer
 
             // Receive Mode Configuration
             EditorGUI.PropertyField(drawRect, receiveMode);
-            drawRect.y += lineHeight + spacing;
+            drawRect.y += lineHeight + headerSpacing; // Re-use headerSpacing for 8px padding
 
             ReceiveMode currentReceiveMode = (ReceiveMode)receiveMode.enumValueIndex;
 
@@ -165,7 +167,8 @@ public class MessageMappingDrawer : PropertyDrawer
     /// </summary>
     public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
     {
-        float totalHeight = 10; // Padding
+        float totalHeight = 10; // Internal padding
+        totalHeight += mappingSpacing; // External spacing between mappings
         
         // Header, mappingLabel, messageId, direction
         totalHeight += (lineHeight + spacing) * 4;
@@ -177,7 +180,7 @@ public class MessageMappingDrawer : PropertyDrawer
         {
             totalHeight += sectionSpacing;
             totalHeight += lineHeight + headerSpacing; // Header Label
-            totalHeight += lineHeight + spacing; // Receive Mode dropdown
+            totalHeight += lineHeight + headerSpacing; // Receive Mode dropdown (with 8px padding)
             
             SerializedProperty receiveMode = property.FindPropertyRelative("receiveMode");
             if ((ReceiveMode)receiveMode.enumValueIndex == ReceiveMode.TriggerOnly)
