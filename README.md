@@ -31,6 +31,30 @@ This repository provides a robust, reflection-powered bridge between **ProtoPie 
 
 ---
 
+## ⚙️ Message Modes & Configuration
+
+The `ProtoPieConnector` provides distinct modes for handling different communication needs.
+
+### 📥 Receive Modes (ProtoPie → Unity)
+Defines how Unity should respond to a specific `messageId` from ProtoPie.
+
+- **TriggerOnly**: Use this when you just want to trigger a simple action (e.g., Playing an animation, Toggling a light) without needing any data from ProtoPie.
+  - *UI*: Displays the `On Receive ()` UnityEvent.
+- **WithValue**: Use this when the ProtoPie message contains a payload (like a slider value or a text string) that you want to pass into a Unity function.
+  - *UI*: Displays the `On Receive With Value (String)` UnityEvent.
+
+### 📤 Send Modes (Unity → ProtoPie)
+Defines what data Unity should send to ProtoPie when a specific local event is intercepted.
+
+- **TriggerOnly**: Sends just the `messageId` to ProtoPie with an empty value. Perfect for simple notifications like "Screen_Entered".
+- **WithValue**: Sends the `messageId` along with a payload. You must then choose a **Payload Type**:
+  - **Static String**: Sends a fixed text value that you type directly into the Inspector (e.g., sending "Success" when a button is clicked).
+  - **Dynamic Variable**: Automatically fetches a value from a script variable or property right at the moment the event triggers.
+    - **Variable Source Obj**: The GameObject containing the script with your variable.
+    - **Variable Data Source**: A dropdown showing all available fields and properties (int, float, bool, string) on that object.
+
+---
+
 ## 📦 Tutorial: Interactive 3D Cube
 
 This example demonstrates how to set up a basic interactive cube that talks to ProtoPie.
