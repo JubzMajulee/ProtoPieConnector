@@ -20,8 +20,7 @@ using System.Reflection;
 public enum MessageDirection : ushort
 {
     Receive = 0,
-    Send = 1,
-    Both = 2
+    Send = 1
 }
 
 public enum ReceiveMode
@@ -251,7 +250,7 @@ public class ProtoPieConnector : MonoBehaviour
         // Try to find a mapping in our dictionary using the 'messageId' as the key.
         if (_mappingLookup.TryGetValue(msg.MessageId, out MessageMapping mapping))
         {
-            if (mapping.direction == MessageDirection.Receive || mapping.direction == MessageDirection.Both)
+            if (mapping.direction == MessageDirection.Receive)
             {
                 // SUCCESS: A mapping was found.
                 Debug.Log($"[ProtoPie] Executing mapping for '{msg.MessageId}' with value '{msg.Value}'...");
@@ -276,7 +275,7 @@ public class ProtoPieConnector : MonoBehaviour
     {
         foreach (var mapping in mappings)
         {
-            if (mapping.direction == MessageDirection.Send || mapping.direction == MessageDirection.Both)
+            if (mapping.direction == MessageDirection.Send)
             {
                 SubscribeToEvent(mapping);
             }

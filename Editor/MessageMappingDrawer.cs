@@ -62,7 +62,7 @@ public class MessageMappingDrawer : PropertyDrawer
         MessageDirection currentDir = (MessageDirection)direction.enumValueIndex;
 
         // --- DRAW RECEIVE FIELDS ---
-        if (currentDir == MessageDirection.Receive || currentDir == MessageDirection.Both)
+        if (currentDir == MessageDirection.Receive)
         {
             drawRect.y += sectionSpacing;
 
@@ -92,16 +92,9 @@ public class MessageMappingDrawer : PropertyDrawer
         }
 
         // --- DRAW SEND FIELDS ---
-        if (currentDir == MessageDirection.Send || currentDir == MessageDirection.Both)
+        if (currentDir == MessageDirection.Send)
         {
             drawRect.y += sectionSpacing;
-
-            // Separator if Both mode is selected
-            if (currentDir == MessageDirection.Both)
-            {
-                EditorGUI.LabelField(new Rect(drawRect.x, drawRect.y, drawRect.width, 2), GUIContent.none, GUI.skin.horizontalSlider);
-                drawRect.y += 2 + sectionSpacing;
-            }
 
             EditorGUI.LabelField(drawRect, "Action To Listen To (Unity To ProtoPie)", EditorStyles.boldLabel);
             drawRect.y += lineHeight + headerSpacing;
@@ -176,7 +169,7 @@ public class MessageMappingDrawer : PropertyDrawer
         SerializedProperty direction = property.FindPropertyRelative("direction");
         MessageDirection currentDir = (MessageDirection)direction.enumValueIndex;
 
-        if (currentDir == MessageDirection.Receive || currentDir == MessageDirection.Both)
+        if (currentDir == MessageDirection.Receive)
         {
             totalHeight += sectionSpacing;
             totalHeight += lineHeight + headerSpacing; // Header Label
@@ -193,10 +186,9 @@ public class MessageMappingDrawer : PropertyDrawer
             }
         }
 
-        if (currentDir == MessageDirection.Send || currentDir == MessageDirection.Both)
+        if (currentDir == MessageDirection.Send)
         {
             totalHeight += sectionSpacing;
-            if (currentDir == MessageDirection.Both) totalHeight += 2 + sectionSpacing; // Separator height
 
             totalHeight += lineHeight + headerSpacing; // Header Label
             totalHeight += lineHeight + spacing; // Target object field
